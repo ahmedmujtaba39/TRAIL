@@ -1,0 +1,52 @@
+language,region,isolated_dictionary,continuous_corpus_found,verdict,confidence,key_source
+Egyptian Sign Language,Africa,Some,None found,Excellent,Medium,en.wikipedia.org/wiki/Egyptian_Sign_Language
+Algerian Sign Language,Africa,Yes,None found,Excellent,High,dl.acm.org/doi/10.1145/3596909
+Moroccan Sign Language,Africa,Yes,None found,Excellent,High,data.mendeley.com/datasets/23phgyt3mt/1
+Tunisian Sign Language,Africa,Some,None found,Good,Medium,github.com/dhiaabdelli12/tunisian-sign-language-seq-classification-dataset-building
+Libyan Sign Language,Africa,Unclear/Weak,None found,Weak,Low,
+Nigerian Sign Language,Africa,Yes,Partial (AfriSign),Not a candidate,Medium,link.springer.com/article/10.1007/s44163-025-00227-7
+Ghanaian Sign Language,Africa,Yes,Yes,Not a candidate,High,nature.com/articles/s41598-026-43478-9
+Kenyan Sign Language,Africa,Yes,Yes,Not a candidate,High,arxiv.org/abs/2410.18295
+South African Sign Language,Africa,Yes,Yes,Not a candidate,High,researchgate.net/publication/304490000
+Ethiopian Sign Language,Africa,Yes,Yes,Not a candidate,High,zenodo.org/records/10800699
+Kuwaiti Sign Language,Middle East,Yes,None found,Excellent,Medium,ssdd.kisr.edu.kw/ada/sldictionary/index_en.html
+Iraqi Sign Language,Middle East,Some,None found,Good,Medium,
+Jordanian Sign Language,Middle East,Yes,None found,Excellent,High,lotpublications.nl/Documents/193_fulltext.pdf
+Lebanese Sign Language,Middle East,Some,None found,Good,Medium,signacademy.org/sign-language/lebanese-sign-language
+Palestinian Sign Language,Middle East,Yes,None found,Excellent,High,
+Yemeni Sign Language,Middle East,Yes,None found,Excellent,High,figshare.com/articles/dataset/_b_Yemeni_sign_Language_dataset_b_/26114395
+Iranian/Persian Sign Language,Middle East,Yes,None found,Excellent,High,arxiv.org/abs/2503.12451
+Turkish Sign Language,Middle East,Yes,Yes,Not a candidate,High,arxiv.org/abs/2405.02984
+Azerbaijani Sign Language,Middle East,Yes,Yes,Not a candidate,High,arxiv.org/abs/2411.12865
+Uzbek Sign Language,Middle East,Weak/uncertain,None found,Weak,Low,sharoitplus.uz
+Bangladeshi Sign Language,South/SE Asia,Yes,Yes,Not a candidate,Medium,
+Pakistani Sign Language,South/SE Asia,Some,None found,Good,Medium,kaggle.com/datasets/jahanzebnaeem/wlpsl
+Nepalese Sign Language,South/SE Asia,Yes,Partial/not public,Excellent,Medium,ieeexplore.ieee.org/document/10544519
+Sri Lankan Sign Language,South/SE Asia,Yes,Partial/unclear,Excellent,Medium,kaggle.com/datasets/yohanabhishek/ssl400-dynamic-sri-lankan-sign-language-dataset
+Indonesian Sign Language (BISINDO),South/SE Asia,Yes,Partial,Good,Medium,thesai.org
+Malaysian Sign Language (BIM),South/SE Asia,Yes,Yes,Not a candidate,Medium,sciencedirect.com/science/article/pii/S2352340926000648
+Philippine Sign Language (FSL),South/SE Asia,Yes,None found,Excellent,High,data.mendeley.com/datasets/48y2y99mb9/2
+Vietnamese Sign Language,South/SE Asia,Yes,Small/unclear,Excellent,Medium,authorea.com
+Thai Sign Language,South/SE Asia,Yes,None found,Excellent,High,ieeexplore.ieee.org/document/11421897
+Japanese Sign Language,East Asia,Yes,Yes,Not a candidate,High,research.nii.ac.jp/jsl-corpus
+Korean Sign Language,East Asia,Yes,Yes,Not a candidate,High,github.com/ChelseaGH/KSL-Guide
+Taiwanese Sign Language,East Asia,Yes,None found,Excellent,Medium-High,twtsl.ccu.edu.tw
+Hong Kong Sign Language,East Asia,Yes,Yes,Not a candidate,High,tvb-hksl-news.github.io
+Mongolian Sign Language,East Asia,Some,None found,Excellent,Medium,mnsl.mn
+Albanian Sign Language,Europe,Some,None found,Good,Medium,signwriting.org
+Bosnian Sign Language,Europe,Some,None found,Good,Low-Medium,en.wikipedia.org/wiki/Yugoslav_Sign_Language
+Serbian Sign Language,Europe,Yes,None found,Excellent,High,spreadthesign.com
+Croatian Sign Language,Europe,Yes,None found,Excellent,High,sign-lang.uni-hamburg.de/lr/compendium/language/csq.html
+Romanian Sign Language,Europe,Yes,None found,Excellent,High,arxiv.org/abs/2511.12767
+Bulgarian Sign Language,Europe,Yes,None found,Excellent,High,aclanthology.org/2022.clib-1.6
+Ukrainian Sign Language,Europe,Yes,Yes (small),Not a candidate,High,aclanthology.org/2026.unlp-1.6
+Georgian Sign Language,Europe,Some,None found,Good,Medium,agenda.ge/en/news/2014/2725
+Armenian Sign Language,Europe,Weak/No,None found,Not a candidate (no lexicon),Medium,scholarworks.calstate.edu/concern/theses/1831cp67f
+Mexican Sign Language (LSM),Latin America,Yes,Partial/None,Excellent,High,nature.com/articles/s41597-025-04871-7
+Colombian Sign Language (LSC),Latin America,Yes,Yes (small),Weak,Medium,openaccess.thecvf.com
+Peruvian Sign Language (LSP),Latin America,Yes,Yes,Not a candidate,High,aclanthology.org/2022.signlang-1.1
+Chilean Sign Language (LSCh),Latin America,Some,None found,Good,Medium,language-archives.org/language/csg
+Argentine Sign Language (LSA),Latin America,Yes,Yes,Not a candidate,High,arxiv.org/abs/2211.15481
+Ecuadorian Sign Language,Latin America,Some,None found,Good,Medium,researchgate.net/321138833
+Venezuelan Sign Language,Latin America,Some,None found,Good (speculative),Low,en.wikipedia.org/wiki/Venezuelan_Sign_Language
+Caribbean Sign Language(s),Latin America,Unclear (composite),None found,Not assessable,Low,en.wikipedia.org/wiki/Trinidad_and_Tobago_Sign_Language
