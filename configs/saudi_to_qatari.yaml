@@ -1,0 +1,27 @@
+experiment:
+  name: saudi_to_qatari_go_no_go
+  seed: 42
+  runs_per_condition: 3
+  bootstrap_resamples: 2000
+  within_language_tolerance_wer_pp: 2.0
+
+source:
+  language: Saudi Sign Language
+  continuous_dataset: Isharah
+  isolated_dataset: KArSL
+
+target:
+  language: Qatari Sign Language
+  continuous_dataset: JUMLA-QSL-22
+  isolated_dictionary: Jumla QSL Dictionary
+
+conditions:
+  - phonological
+  - pose_only
+  - interpolation
+
+data:
+  source_transition_manifest: data/processed/isharah_transitions.csv
+  source_isolated_manifest: data/processed/karsl_isolated.csv
+  target_isolated_manifest: data/processed/qsl_dictionary_isolated.csv
+  target_eval_manifest: data/processed/jumla_qsl_eval.csv
