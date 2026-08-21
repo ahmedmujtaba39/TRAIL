@@ -12,9 +12,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+import torch
 
 from trail.descriptors import endpoint_descriptor
 from trail.landmarks import load_landmarks
+from trail.handshape import HandshapeClassifier
 
 
 @dataclass(frozen=True)
@@ -41,7 +43,7 @@ def sample_window(pose: np.ndarray, *, boundary_frames: int, duration: int, rng:
     )
 
 
-def write_windows(pose_paths: list[Path], output: Path, *, windows_per_clip: int = 2, boundary_frames: int = 6, duration: int = 8, seed: int = 42) -> int:
+def write_windows(pose_paths: list[Path], output: Path, *, windows_per_clip: int = 2, boundary_frames: int = 6, duration: int = 8, seed: int = 42, handshape_model: HandshapeClassifier | None = None, device: torch.device | None = None) -> int:
     """Materialize compact weak transition windows into one compressed NPZ file."""
     rng = np.random.default_rng(seed)
     windows: list[TransitionWindow] = []
@@ -60,8 +62,8 @@ def write_windows(pose_paths: list[Path], output: Path, *, windows_per_clip: int
         left=np.stack([item.left for item in windows]),
         right=np.stack([item.right for item in windows]),
         target=np.stack([item.target for item in windows]),
-        left_descriptor=np.stack([endpoint_descriptor(item.left, use_last=True) for item in windows]),
-        right_descriptor=np.stack([endpoint_descriptor(item.right, use_last=False) for item in windows]),
+        left_descriptor=np.stack([endpoint_descriptor(item.left, use_last=True, handshape_model=handshape_model, device=device) for item in windows]),
+        right_descriptor=np.stack([endpoint_descriptor(item.right, use_last=False, handshape_model=handshape_model, device=device) for item in windows]),
         duration=np.asarray([item.duration for item in windows], dtype=np.int64),
     )
     return len(windows)

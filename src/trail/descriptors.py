@@ -8,6 +8,9 @@ condition until hand landmarks and human-verified phonological categories exist.
 from __future__ import annotations
 
 import numpy as np
+import torch
+
+from trail.handshape import HandshapeClassifier, handshape_distribution
 
 
 LEFT_ELBOW, RIGHT_ELBOW = 13, 14
@@ -41,12 +44,17 @@ def _hand_features(hand: np.ndarray, wrist: np.ndarray, previous: np.ndarray) ->
     return np.concatenate([fingertips.ravel(), palm_normal, spread, motion])
 
 
-def endpoint_descriptor(window: np.ndarray, *, use_last: bool) -> np.ndarray:
-    """Return 18D body or 77D hand-aware articulatory endpoint features."""
+def endpoint_descriptor(
+    window: np.ndarray, *, use_last: bool, handshape_model: HandshapeClassifier | None = None,
+    device: torch.device | None = None,
+) -> np.ndarray:
+    """Return articulatory features, prefixed with soft handshape token when supplied."""
     if window.ndim != 3 or window.shape[-1] != 3 or window.shape[1] not in (33, 75):
         raise ValueError("Expected normalized [frames, 33|75, 3] landmarks.")
     body = _body_descriptor(window[:, :33], use_last=use_last)
     if window.shape[1] == 33:
+        if handshape_model is not None:
+            raise ValueError("A handshape classifier requires 75-joint hand-aware landmarks.")
         return body
     frame = window[-1] if use_last else window[0]
     previous = window[max(0, len(window) - 3)] if use_last else window[min(len(window) - 1, 2)]
@@ -62,4 +70,9 @@ def endpoint_descriptor(window: np.ndarray, *, use_last: bool) -> np.ndarray:
     descriptor = np.concatenate([body, left_hand, right_hand, bilateral]).astype(np.float32)
     if descriptor.shape != (HAND_AWARE_DESCRIPTOR_DIM,):
         raise AssertionError(f"Expected {HAND_AWARE_DESCRIPTOR_DIM}D descriptor, got {descriptor.shape}")
-    return descriptor
+    if handshape_model is None:
+        return descriptor
+    if device is None:
+        device = next(handshape_model.parameters()).device
+    handshape = handshape_distribution(window, handshape_model, use_last=use_last, device=device)
+    return np.concatenate([handshape, descriptor]).astype(np.float32)

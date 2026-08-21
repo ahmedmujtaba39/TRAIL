@@ -264,3 +264,25 @@ Saudi source clips and `trail.batch_qsl_hand_pose` for Qatari isolated/eval
 clips.  Run a 10-clip quality audit first, inspect hand coverage, and only then
 launch the full extraction; hand-aware landmark files are intentionally stored
 outside Git.
+
+### Proposal-level phonological token
+
+The full TRAIL condition prefixes the 77D deterministic descriptor with a soft
+handshape distribution from `HandshapeClassifier`.  The classifier must be
+trained on an isolated, **signer-held-out** alphabet/digit or handshape-labelled
+set (KArSL Arabic letters/digits are the intended Saudi source).  Its accuracy
+and uncertainty must be reported per language.  Do not use a generic ASL or
+German pretrained classifier as ground truth for Arabic handshapes.
+
+`trail.build_handshape_examples` turns a reviewed isolated-clip manifest
+(`pose_path,handshape_label,split`) into 60D wrist-centred, palm-aligned inputs.
+`trail.train_handshape` then produces the soft classifier checkpoint.  Pass that
+checkpoint to both `trail.prepare_transitions --handshape-checkpoint` and
+`trail.synthesize --handshape-checkpoint`; this yields a descriptor of
+`77 + H` dimensions, where `H` is the source handshape inventory size.
+
+For the causal ablation, train **one** articulatory/phonological Model T with
+`--descriptor-token-drop-prob 0.5`.  This masks both descriptor tokens on half
+of training examples.  At inference, synthesize `articulatory` (tokens present)
+and `pose_only` (the exact same checkpoint, tokens masked).  Separate training
+runs do not satisfy the shared-weight causal contract in the proposal.

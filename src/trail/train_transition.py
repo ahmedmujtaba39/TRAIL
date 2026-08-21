@@ -30,6 +30,7 @@ def main() -> None:
     parser.add_argument("--layers", type=int, default=2)
     parser.add_argument("--descriptor-dim", type=int, default=None, help="Override descriptor width; inferred from the window file by default.")
     parser.add_argument("--descriptor-mask-prob", type=float, default=0.20, help="Per-feature mask probability for articulatory training.")
+    parser.add_argument("--descriptor-token-drop-prob", type=float, default=0.50, help="Probability of masking both descriptor tokens; enables the shared-weight causal ablation.")
     parser.add_argument("--condition", choices=["pose_only", "articulatory"], default="pose_only")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
@@ -75,9 +76,10 @@ def main() -> None:
                 right_mask = torch.rand_like(batch_right_descriptor) < args.descriptor_mask_prob
                 batch_left_descriptor = batch_left_descriptor.masked_fill(left_mask, 0.0)
                 batch_right_descriptor = batch_right_descriptor.masked_fill(right_mask, 0.0)
+            token_mask = (torch.rand(len(batch_left), device=device) < args.descriptor_token_drop_prob) if args.condition == "articulatory" else None
             prediction = model(
                 batch_left.to(device), batch_right.to(device), batch_left_descriptor.to(device), batch_right_descriptor.to(device),
-                batch_duration.to(device), use_descriptors=args.condition == "articulatory",
+                batch_duration.to(device), use_descriptors=args.condition == "articulatory", descriptor_token_mask=token_mask,
             )
             loss = transition_loss(prediction, batch_target.to(device))
             loss.backward()
@@ -93,7 +95,7 @@ def main() -> None:
         {"state_dict": model.state_dict(), "joints": left.shape[2], "descriptor_dim": descriptor_dim, "descriptor_mean": mean.numpy(), "descriptor_std": std.numpy(), "width": args.width, "layers": args.layers, "history": history},
         args.output,
     )
-    args.output.with_suffix(".json").write_text(json.dumps({"final_loss": history[-1], "epochs": args.epochs, "windows": len(left), "condition": args.condition, "descriptor_dim": descriptor_dim, "descriptor_mask_prob": args.descriptor_mask_prob if args.condition == "articulatory" else 0.0}, indent=2), encoding="utf-8")
+    args.output.with_suffix(".json").write_text(json.dumps({"final_loss": history[-1], "epochs": args.epochs, "windows": len(left), "condition": args.condition, "descriptor_dim": descriptor_dim, "descriptor_mask_prob": args.descriptor_mask_prob if args.condition == "articulatory" else 0.0, "descriptor_token_drop_prob": args.descriptor_token_drop_prob if args.condition == "articulatory" else 0.0, "ablation_contract": "shared checkpoint: present descriptors vs both tokens masked" if args.condition == "articulatory" else "not applicable"}, indent=2), encoding="utf-8")
     print(f"Saved {args.condition} Model T checkpoint to {args.output}")
 
 

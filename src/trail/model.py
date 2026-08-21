@@ -30,6 +30,7 @@ class TransitionTransformer(nn.Module):
         duration: torch.Tensor,
         *,
         use_descriptors: bool,
+        descriptor_token_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Generate a residual over straight-line interpolation.
 
@@ -49,6 +50,10 @@ class TransitionTransformer(nn.Module):
         pose_tokens = self.pose_projection(pose_tokens)
         if use_descriptors:
             desc_tokens = torch.stack([self.descriptor_projection(left_descriptor), self.descriptor_projection(right_descriptor)], dim=1)
+            if descriptor_token_mask is not None:
+                if descriptor_token_mask.shape != (batch,):
+                    raise ValueError("descriptor_token_mask must have shape [batch].")
+                desc_tokens = torch.where(descriptor_token_mask[:, None, None], self.mask_token.expand(batch, 2, -1), desc_tokens)
         else:
             desc_tokens = self.mask_token.expand(batch, 2, -1)
         duration_token = self.duration_projection(duration.float().view(batch, 1, 1)).squeeze(1).unsqueeze(1)

@@ -7,6 +7,8 @@ import csv
 from pathlib import Path
 
 from trail.transitions import write_windows
+from trail.handshape import load_handshape_classifier
+import torch
 
 
 def main() -> None:
@@ -20,6 +22,7 @@ def main() -> None:
     parser.add_argument("--windows-per-clip", type=int, default=2)
     parser.add_argument("--boundary-frames", type=int, default=6)
     parser.add_argument("--duration", type=int, default=8)
+    parser.add_argument("--handshape-checkpoint", type=Path, default=None, help="Optional soft handshape classifier; requires 75-joint inputs.")
     args = parser.parse_args()
     poses = sorted([*args.pose_root.glob("*.npy"), *args.pose_root.glob("*.npz")])
     if args.audit is not None:
@@ -34,7 +37,9 @@ def main() -> None:
         poses = [path for path in poses if quality.get(path.stem, (0.0, 0.0))[0] >= args.min_coverage and quality.get(path.stem, (0.0, 0.0))[1] >= args.min_hand_coverage]
     if args.limit is not None:
         poses = poses[:args.limit]
-    count = write_windows(poses, args.output, windows_per_clip=args.windows_per_clip, boundary_frames=args.boundary_frames, duration=args.duration)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    handshape = load_handshape_classifier(args.handshape_checkpoint, device) if args.handshape_checkpoint else None
+    count = write_windows(poses, args.output, windows_per_clip=args.windows_per_clip, boundary_frames=args.boundary_frames, duration=args.duration, handshape_model=handshape, device=device)
     print(f"Wrote {count} weak Saudi transition windows to {args.output} from {len(poses)} qualified clips")
 
 

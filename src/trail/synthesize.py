@@ -12,6 +12,7 @@ import torch
 
 from trail.descriptors import endpoint_descriptor
 from trail.landmarks import load_landmarks
+from trail.handshape import HandshapeClassifier, load_handshape_classifier
 from trail.model import TransitionTransformer, interpolate
 
 
@@ -33,7 +34,7 @@ def _load_model(checkpoint: Path, device: torch.device) -> tuple[TransitionTrans
     return model, mean, np.maximum(std, 1e-4)
 
 
-def _compose(units: list[np.ndarray], model: TransitionTransformer | None, descriptor_mean: np.ndarray | None, descriptor_std: np.ndarray | None, *, duration: int, device: torch.device, articulatory: bool) -> np.ndarray:
+def _compose(units: list[np.ndarray], model: TransitionTransformer | None, descriptor_mean: np.ndarray | None, descriptor_std: np.ndarray | None, handshape_model: HandshapeClassifier | None, *, duration: int, device: torch.device, articulatory: bool) -> np.ndarray:
     output = [units[0]]
     with torch.no_grad():
         for left, right in zip(units, units[1:]):
@@ -43,8 +44,8 @@ def _compose(units: list[np.ndarray], model: TransitionTransformer | None, descr
                 transition = interpolate(left_boundary, right_boundary, duration)
             else:
                 if articulatory:
-                    left_raw = endpoint_descriptor(left[-6:], use_last=True)
-                    right_raw = endpoint_descriptor(right[:6], use_last=False)
+                    left_raw = endpoint_descriptor(left[-6:], use_last=True, handshape_model=handshape_model, device=device)
+                    right_raw = endpoint_descriptor(right[:6], use_last=False, handshape_model=handshape_model, device=device)
                     if len(left_raw) != model.descriptor_projection.in_features:
                         raise ValueError("Descriptor/data mismatch: use a hand-aware checkpoint with hand-aware units, or body-only for both.")
                     left_descriptor = torch.from_numpy((left_raw - descriptor_mean) / descriptor_std).unsqueeze(0).to(device)
@@ -68,6 +69,7 @@ def main() -> None:
     parser.add_argument("--variants-per-template", type=int, default=1)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--duration", type=int, default=8)
+    parser.add_argument("--handshape-checkpoint", type=Path, default=None, help="Required when checkpoint descriptor width includes soft handshape probabilities.")
     args = parser.parse_args()
     if args.condition != "interpolation" and not args.checkpoint:
         raise SystemExit("--checkpoint is required for pose_only/articulatory synthesis.")
@@ -90,8 +92,9 @@ def main() -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if args.condition != "interpolation":
         model, descriptor_mean, descriptor_std = _load_model(args.checkpoint, device)
+        handshape_model = load_handshape_classifier(args.handshape_checkpoint, device) if args.handshape_checkpoint else None
     else:
-        model = descriptor_mean = descriptor_std = None
+        model = descriptor_mean = descriptor_std = handshape_model = None
     destination = args.output_root / args.condition
     destination.mkdir(parents=True, exist_ok=True)
     manifest_path = destination / "synthetic_manifest.csv"
@@ -101,7 +104,7 @@ def main() -> None:
         for index, (label, tokens, variant) in enumerate(selected):
             # Cycle across independent isolated exemplars deterministically.
             paths = [lexicon[token][(variant * 17 + position * 7 + args.seed) % len(lexicon[token])] for position, token in enumerate(tokens)]
-            sequence = _compose([load_landmarks(path) for path in paths], model, descriptor_mean, descriptor_std, duration=args.duration, device=device, articulatory=args.condition == "articulatory")
+            sequence = _compose([load_landmarks(path) for path in paths], model, descriptor_mean, descriptor_std, handshape_model, duration=args.duration, device=device, articulatory=args.condition == "articulatory")
             sample_id = f"syn_{index:04d}"
             pose_path = destination / f"{sample_id}.npy"
             np.save(pose_path, sequence)
