@@ -52,3 +52,132 @@ uv run trail-smoke
 The smoke test is synthetic and only verifies that masking, interpolation,
 transition generation, and the pre-registered decision rule execute correctly.
 It is not a scientific result.
+
+## First real-data gate: QSL audit
+
+Run this once after downloading the front-view (`rec0.svo`) clips. It creates a
+reproducible manifest without copying the raw videos:
+
+```powershell
+python -m trail.prepare_qsl `
+  --workbook C:\Users\cp\Downloads\JUMLA_QSL-2022.xlsx `
+  --data-root "C:\Users\cp\Downloads\Student-learning-hub-main\Qatari Sign Language"
+```
+
+The protocol treats AS one-token clips as a **proxy isolated lexicon** and keeps
+AT and MA continuous clips strictly held out for evaluation. Report the result
+as Arabic intent-token WER, not formal QSL-gloss WER: JUMLA provides Arabic
+intent sequences rather than an expert temporal QSL gloss tier.
+
+Create the matching Saudi source index with:
+
+```powershell
+python -m trail.prepare_isharah `
+  --source-root C:\Users\cp\Downloads\isharah500_compressed\isharah500_compressed
+```
+
+This produces a sequence-level source manifest from Isharah's published SI
+split. It is not yet a transition manifest: transition windows are created only
+after pose extraction and source-side temporal segmentation. The phonological
+condition additionally requires an auditable descriptor table; it must not be
+silently substituted with labels from held-out QSL continuous clips.
+
+### QSL SVO decode check
+
+JUMLA's `.svo` front recordings can be decoded with FFmpeg on this Intel GPU
+machine; ZED Explorer is not required. Test one clip first and visually inspect
+the frames before any batch extraction:
+
+```powershell
+python -m trail.extract_svo `
+  "C:\Users\cp\Downloads\Student-learning-hub-main\Qatari Sign Language\Participant_AS\f_AS059\rec0.svo" `
+  data\cache\qsl_decode_check `
+  --ffmpeg "C:\path\to\ffmpeg.exe" --max-frames 12
+```
+
+The extractor strips the 296-byte SVO header, uses FFmpeg's CPU H.264 decoder,
+and retains only the left half of the stereo front recording. `data/cache/` is
+ignored by Git.
+
+Then turn the decoded frames into a normalized `[frames, 33, 3]` pose array:
+
+```powershell
+python -m trail.extract_pose data\cache\qsl_decode_check data\cache\qsl_decode_check.npy `
+  --model assets\models\pose_landmarker_full.task
+```
+
+This first representation is 33 body landmarks, centered at the shoulder
+midpoint and scaled by shoulder width. The experiment code will report it as a
+body-pose baseline; hand landmarks are a required later extension before making
+strong claims about handshape or orientation.
+
+For a disk-bounded pilot, process a small number of clips at a time. The command
+creates only the final `.npy` pose arrays and deletes temporary JPEG frames after
+each clip:
+
+```powershell
+python -m trail.batch_qsl_pose `
+  --manifest data\processed\jumla_qsl_manifest.csv `
+  --pose-root data\processed\qsl_body_pose `
+  --cache-root data\cache\qsl_work `
+  --ffmpeg "C:\path\to\ffmpeg.exe" `
+  --model assets\models\pose_landmarker_full.task `
+  --limit 9
+```
+
+Isharah needs no video decoder: its source archives already contain JPEG frame
+sequences. Extract Saudi poses directly from a small source pilot with:
+
+```powershell
+python -m trail.batch_isharah_pose `
+  --manifest data\processed\isharah_sequences.csv `
+  --pose-root data\processed\isharah_body_pose `
+  --cache-root data\cache\isharah_work `
+  --model assets\models\pose_landmarker_full.task --split train --limit 9
+```
+
+For the initial Model-T engineering pilot, create fixed-length **weak** Saudi
+transition windows after source poses exist:
+
+```powershell
+python -m trail.prepare_transitions `
+  --pose-root data\processed\isharah_body_pose `
+  --output data\processed\isharah_weak_transitions.npz
+```
+
+Because Isharah's released annotations are sequence-level rather than temporal
+gloss boundaries, these windows supervise generic continuous motion completion.
+They are useful for the pose-only baseline and pipeline validation, but they are
+not gold coarticulation labels. The final phonological claim requires the
+separate descriptor table and a clearly reported alignment protocol.
+
+Train the pose-only Model-T engineering baseline (the phonological flag is
+intentionally refused until audited descriptors are available):
+
+```powershell
+python -m trail.train_transition `
+  --windows data\processed\isharah_weak_transitions.npz `
+  --output runs\pilot\pose_only_model_t.pt
+```
+
+After AS poses and a Model-T checkpoint exist, generate matched target
+sequences with two non-phonological conditions:
+
+```powershell
+python -m trail.synthesize --manifest data\processed\jumla_qsl_manifest.csv `
+  --pose-root data\processed\qsl_body_pose --output-root data\processed\synthetic_qsl `
+  --condition interpolation
+
+python -m trail.synthesize --manifest data\processed\jumla_qsl_manifest.csv `
+  --pose-root data\processed\qsl_body_pose --output-root data\processed\synthetic_qsl `
+  --condition pose_only --checkpoint runs\pilot\pose_only_model_t.pt
+```
+
+### Structured-conditioning pilot
+
+The workshop pilot also includes an **articulatory Model T** condition. Its
+18D descriptors are automatically derived from pose boundaries: bilateral wrist
+locations, forearm directions, and local wrist motion. This is a reproducible
+structured-conditioning test, not expert phonological annotation. The paper must
+reserve “phonological” for a later descriptor table validated by sign-language
+experts and enriched with handshape/orientation features.

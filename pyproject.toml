@@ -6,6 +6,8 @@ readme = "EXPERIMENT.md"
 requires-python = ">=3.11"
 dependencies = [
   "numpy>=1.26",
+  "mediapipe>=1.0",
+  "opencv-python>=5.0",
   "pandas>=2.2",
   "pyyaml>=6.0",
   "torch>=2.3",
@@ -15,6 +17,15 @@ dependencies = [
 [project.scripts]
 trail-smoke = "trail.smoke:main"
 trail-validate = "trail.validate:main"
+trail-prepare-qsl = "trail.prepare_qsl:main"
+trail-prepare-isharah = "trail.prepare_isharah:main"
+trail-extract-svo = "trail.extract_svo:main"
+trail-extract-pose = "trail.extract_pose:main"
+trail-batch-qsl-pose = "trail.batch_qsl_pose:main"
+trail-batch-isharah-pose = "trail.batch_isharah_pose:main"
+trail-prepare-transitions = "trail.prepare_transitions:main"
+trail-train-transition = "trail.train_transition:main"
+trail-synthesize = "trail.synthesize:main"
 
 [build-system]
 requires = ["hatchling>=1.25"]
