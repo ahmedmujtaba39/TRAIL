@@ -60,14 +60,48 @@ class HandshapeClassifier(nn.Module):
         return self.network(features)
 
 
-def load_handshape_classifier(path: Path, device: torch.device) -> HandshapeClassifier:
+class ReferenceHandshapeClassifier(nn.Module):
+    """Shared geometry encoder with a source-specific soft reference codebook.
+
+    The selected output head is a *reference handshape inventory*, not a claim
+    that its language-specific label names are Arabic phonological categories.
+    Its soft posterior is used as an automatic hand-configuration token and is
+    evaluated separately before it may condition TRAIL.
+    """
+
+    def __init__(self, head_sizes: dict[str, int], reference_source: str, width: int = 128):
+        super().__init__()
+        if reference_source not in head_sizes:
+            raise ValueError(f"Unknown reference source {reference_source!r}")
+        self.head_sizes = dict(head_sizes); self.reference_source = reference_source; self.width = width
+        self.encoder = nn.Sequential(nn.Linear(60, width), nn.ReLU(), nn.Dropout(0.10), nn.Linear(width, width), nn.ReLU())
+        self.heads = nn.ModuleDict({source: nn.Linear(width, classes) for source, classes in self.head_sizes.items()})
+
+    def encode(self, features: torch.Tensor) -> torch.Tensor:
+        return self.encoder(features)
+
+    def logits(self, features: torch.Tensor, source: str) -> torch.Tensor:
+        return self.heads[source](self.encode(features))
+
+    def forward(self, features: torch.Tensor) -> torch.Tensor:
+        return self.logits(features, self.reference_source)
+
+
+def load_handshape_classifier(path: Path, device: torch.device) -> nn.Module:
     values = torch.load(path, map_location=device, weights_only=False)
+    if values.get("checkpoint_type") == "reference_handshape":
+        model = ReferenceHandshapeClassifier(
+            {str(key): int(value) for key, value in values["head_sizes"].items()},
+            str(values["reference_source"]), int(values.get("width", 128)),
+        ).to(device)
+        model.load_state_dict(values["state_dict"]); model.eval()
+        return model
     model = HandshapeClassifier(int(values["classes"]), int(values.get("width", 128))).to(device)
     model.load_state_dict(values["state_dict"]); model.eval()
     return model
 
 
-def handshape_distribution(window: np.ndarray, model: HandshapeClassifier, *, use_last: bool, device: torch.device) -> np.ndarray:
+def handshape_distribution(window: np.ndarray, model: nn.Module, *, use_last: bool, device: torch.device) -> np.ndarray:
     feature = torch.from_numpy(dominant_hand_features(window, use_last=use_last)).unsqueeze(0).to(device)
     with torch.no_grad():
         return torch.softmax(model(feature), dim=-1).squeeze(0).cpu().numpy().astype(np.float32)
