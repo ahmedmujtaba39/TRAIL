@@ -20,6 +20,8 @@ from torch import nn
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset
 
+from trail.landmarks import load_landmarks
+
 
 @dataclass(frozen=True)
 class Example:
@@ -57,7 +59,7 @@ class PoseDataset(Dataset):
 
     def __getitem__(self, index: int):
         example = self.examples[index]
-        pose = torch.from_numpy(np.load(example.pose_path)).float().flatten(1)
+        pose = torch.from_numpy(load_landmarks(example.pose_path)).float().flatten(1)
         labels = torch.tensor([self.vocab[token] for token in example.tokens], dtype=torch.long)
         return pose, labels, example
 

@@ -14,6 +14,7 @@ from pathlib import Path
 import numpy as np
 
 from trail.descriptors import endpoint_descriptor
+from trail.landmarks import load_landmarks
 
 
 @dataclass(frozen=True)
@@ -45,7 +46,7 @@ def write_windows(pose_paths: list[Path], output: Path, *, windows_per_clip: int
     rng = np.random.default_rng(seed)
     windows: list[TransitionWindow] = []
     for path in pose_paths:
-        pose = np.load(path)
+        pose = load_landmarks(path)
         for _ in range(windows_per_clip):
             try:
                 windows.append(sample_window(pose, boundary_frames=boundary_frames, duration=duration, rng=rng))

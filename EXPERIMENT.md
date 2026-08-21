@@ -230,3 +230,37 @@ instances).  This is insufficient for a WER-based Saudi control.  Treat it as
 an extraction sanity check only, not a source-control result.  A publishable
 Saudi control requires a larger manually verified KArSL--Isharah lexical map,
 or a source corpus with aligned isolated and continuous vocabulary.
+
+### Hand-aware articulatory descriptors (main-paper upgrade)
+
+The workshop body-only condition is an 18D endpoint feature.  It is not enough
+to support a strong handshape-level claim.  The upgraded descriptor pipeline
+uses 75 normalized landmarks: 33 body joints plus 21 joints for each hand.  It
+creates a 77D endpoint descriptor consisting of body/wrist motion (18D), each
+hand's fingertip geometry, palm normal, finger spread, local motion (26D per
+hand), and bilateral hand geometry/motion (7D).  Descriptors are standardized
+on the source training set and independently feature-masked while training
+Model T.
+
+First run a small extraction-quality audit.  The hand-landmarker model must be
+supplied locally; it is intentionally excluded from Git.
+
+```powershell
+python -m trail.extract_hand_pose `
+  --frames data\cache\example_frames `
+  --pose-model assets\models\pose_landmarker_full.task `
+  --hand-model assets\models\hand_landmarker.task `
+  --output data\processed\hand_descriptor_smoke\example.npz
+```
+
+For the actual experiment, extract source continuous and target isolated clips
+into separate hand-aware roots, filter clips using `hand_pose_audit.csv`, build
+new 77D transition windows, then run the same three-way comparison:
+interpolation, pose-only Model T, and hand-aware Model T.  The recognizer must
+use landmarks of the same dimensionality as the generated clips.
+
+The two disk-bounded batch commands are `trail.batch_isharah_hand_pose` for
+Saudi source clips and `trail.batch_qsl_hand_pose` for Qatari isolated/eval
+clips.  Run a 10-clip quality audit first, inspect hand coverage, and only then
+launch the full extraction; hand-aware landmark files are intentionally stored
+outside Git.

@@ -16,15 +16,22 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--audit", type=Path, default=None, help="Optional pose_audit.csv for coverage filtering.")
     parser.add_argument("--min-coverage", type=float, default=0.0)
+    parser.add_argument("--min-hand-coverage", type=float, default=0.0, help="Require at least this coverage for either detected hand when using hand_pose_audit.csv.")
     parser.add_argument("--windows-per-clip", type=int, default=2)
     parser.add_argument("--boundary-frames", type=int, default=6)
     parser.add_argument("--duration", type=int, default=8)
     args = parser.parse_args()
-    poses = sorted(path for path in args.pose_root.glob("*.npy") if path.name != "pose_audit.npy")
+    poses = sorted([*args.pose_root.glob("*.npy"), *args.pose_root.glob("*.npz")])
     if args.audit is not None:
         with args.audit.open(encoding="utf-8", newline="") as handle:
-            quality = {row["clip_id"]: float(row["coverage"]) for row in csv.DictReader(handle) if row["status"] == "ok" and row["coverage"]}
-        poses = [path for path in poses if quality.get(path.stem, 0.0) >= args.min_coverage]
+            quality = {}
+            for row in csv.DictReader(handle):
+                if row["status"] != "ok":
+                    continue
+                body = float(row.get("coverage") or row.get("body_coverage") or 0.0)
+                hand = max(float(row.get("left_hand_coverage") or 0.0), float(row.get("right_hand_coverage") or 0.0))
+                quality[row["clip_id"]] = (body, hand)
+        poses = [path for path in poses if quality.get(path.stem, (0.0, 0.0))[0] >= args.min_coverage and quality.get(path.stem, (0.0, 0.0))[1] >= args.min_hand_coverage]
     if args.limit is not None:
         poses = poses[:args.limit]
     count = write_windows(poses, args.output, windows_per_clip=args.windows_per_clip, boundary_frames=args.boundary_frames, duration=args.duration)
