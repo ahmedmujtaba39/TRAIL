@@ -32,10 +32,22 @@ def main() -> None:
     features, targets, sign_ids = [], [], []
     with vision.HandLandmarker.create_from_options(options) as detector:
         for row in rows:
-            image = cv2.imread(row["image_path"], cv2.IMREAD_COLOR)
+            # cv2.imread on Windows fails silently for Arabic 3DZ filenames.
+            # Decode bytes explicitly so every SigML lexical entry is retained.
+            encoded = np.fromfile(row["image_path"], dtype=np.uint8)
+            image = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
             if image is None: continue
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            # CWASA renders a full signer.  On the raw canvas the hands occupy
+            # too few pixels for robust detection, so try the full canvas and
+            # an enlarged central torso crop.  Feature construction is wrist-
+            # centred and palm-aligned, hence it is invariant to this crop.
+            height, width = image.shape[:2]
+            crop = image[int(0.20 * height):int(0.78 * height), int(0.26 * width):int(0.74 * width)]
+            crop = cv2.resize(crop, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
             result = detector.detect(mp.Image(image_format=mp.ImageFormat.SRGB, data=image))
+            if not result.hand_landmarks:
+                result = detector.detect(mp.Image(image_format=mp.ImageFormat.SRGB, data=crop))
             if not result.hand_landmarks: continue
             hand = max(result.hand_landmarks, key=lambda points: max(p.x for p in points) - min(p.x for p in points))
             landmarks = np.asarray([[p.x, p.y, p.z] for p in hand], dtype=np.float32)
