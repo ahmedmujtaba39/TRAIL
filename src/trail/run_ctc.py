@@ -135,7 +135,7 @@ def main() -> None:
             loss_sum += float(loss.detach())
         if epoch == 1 or epoch == args.epochs or epoch % 5 == 0:
             print(f"epoch={epoch} loss={loss_sum / len(loader):.5f}")
-    model.eval(); scores: list[float] = []; participant_scores: dict[str, list[float]] = {"AT": [], "MA": []}
+    model.eval(); scores: list[float] = []; participant_scores: dict[str, list[float]] = {"AT": [], "MA": []}; per_clip: dict[str, float] = {}
     with torch.no_grad():
         for pose, labels, lengths, label_lengths, examples in test_loader:
             logits, output_lengths = model(pose.to(device), lengths.to(device))
@@ -144,8 +144,9 @@ def main() -> None:
                 reference = labels[offset:offset + label_lengths[index]].tolist(); offset += label_lengths[index]
                 score = wer(reference, decode(logits[index].cpu(), int(output_lengths[index])))
                 scores.append(score); participant_scores[example.clip_id[:2]].append(score)
+                per_clip[example.clip_id] = score
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    result = {"mean_wer": float(np.mean(scores)), "n_test": len(scores), "seed": args.seed, "participant_wer": {key: float(np.mean(value)) for key, value in participant_scores.items()}, "n_train": len(train), "vocab_size": len(vocab)}
+    result = {"mean_wer": float(np.mean(scores)), "n_test": len(scores), "seed": args.seed, "participant_wer": {key: float(np.mean(value)) if value else None for key, value in participant_scores.items()}, "n_train": len(train), "vocab_size": len(vocab), "per_clip_wer": per_clip}
     args.output.write_text(json.dumps(result, indent=2), encoding="utf-8")
     print(json.dumps(result, indent=2))
 

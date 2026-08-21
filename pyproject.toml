@@ -28,6 +28,7 @@ trail-train-transition = "trail.train_transition:main"
 trail-synthesize = "trail.synthesize:main"
 trail-run-ctc = "trail.run_ctc:main"
 trail-prepare-oracle = "trail.prepare_oracle:main"
+trail-trim = "trail.trim:main"
 
 [build-system]
 requires = ["hatchling>=1.25"]

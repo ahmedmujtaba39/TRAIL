@@ -195,3 +195,38 @@ Before interpreting synthetic results, run the **real-data oracle**: train the
 same recognizer on real AT continuous pose sequences and evaluate only on MA.
 This is a diagnostic upper bound for the current pose/CTC implementation, not a
 zero-resource result.
+
+### Active-sign trimming
+
+The QSL proxy lexicon clips include leading/trailing rest. Before synthetic
+composition, use conservative elbow/wrist motion-energy trimming and inspect its
+audit before treating the outputs as sign units:
+
+```powershell
+python -m trail.trim --input-root data\processed\qsl_body_pose `
+  --output-root data\processed\qsl_body_pose_trimmed `
+  --audit data\processed\qsl_body_pose_trimmed\trim_audit.csv
+```
+
+### Saudi source-control feasibility audit
+
+The planned Saudi control needs isolated KArSL signs to compose the same Saudi
+intent-token sequences that are evaluated on held-out Isharah continuous clips.
+Do not infer lexical identity merely because two Arabic words look similar.  The
+first reproducible screen is an exact match after conservative orthographic
+normalization; any synonym or dialectal match must be reviewed by a signer or
+other qualified annotator before it is used.
+
+```powershell
+python -m trail.audit_karsl_overlap `
+  --labels C:\path\to\KARSL-502_Labels.xlsx `
+  --isharah-manifest data\processed\isharah_sequences.csv `
+  --output data\processed\karsl_isharah_overlap.json
+```
+
+On the currently supplied releases this screen finds 57 of 388 Isharah tokens
+(12.4% by occurrence), but just one complete sequence template (15 signer/split
+instances).  This is insufficient for a WER-based Saudi control.  Treat it as
+an extraction sanity check only, not a source-control result.  A publishable
+Saudi control requires a larger manually verified KArSL--Isharah lexical map,
+or a source corpus with aligned isolated and continuous vocabulary.
