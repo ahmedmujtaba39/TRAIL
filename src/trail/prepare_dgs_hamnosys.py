@@ -19,9 +19,34 @@ from collections import Counter
 from pathlib import Path
 
 
+# HamNoSys 4 encodes these fundamental hand configurations in the PUA block.
+# The mapping is deliberately limited to the base configuration symbols.  We
+# retain modifiers, orientation, location, and movement in the raw notation
+# columns rather than silently collapsing them into ``h``.
+BASE_HANDSHAPES = {
+    0xE032: "hamfist",
+    0xE033: "hamflathand",
+    0xE034: "hamfinger2",
+    0xE035: "hamfinger23",
+    0xE036: "hamfinger23spread",
+    0xE037: "hamfinger2345",
+    0xE03A: "hampinch12",
+    0xE03B: "hampinchall",
+    0xE03C: "hampinch12open",
+    0xE03D: "hamcee12",
+    0xE03E: "hamceeall",
+    0xE03F: "hamceeopen",
+}
+
+
 def codepoints(value: str) -> str:
     """A portable representation for PUA HamNoSys symbols in CSV/JSON."""
     return " ".join(f"U+{ord(symbol):04X}" for symbol in value)
+
+
+def first_base_handshape(value: str) -> str:
+    """Return the first explicit base hand configuration in a HamNoSys form."""
+    return next((BASE_HANDSHAPES[ord(symbol)] for symbol in value if ord(symbol) in BASE_HANDSHAPES), "unknown")
 
 
 def main() -> None:
@@ -67,6 +92,7 @@ def main() -> None:
             "timecode_end": tag.attrib["timecode_end"],
             "hamnosys": hamnosys,
             "hamnosys_codepoints": codepoints(hamnosys),
+            "handshape_h": first_base_handshape(hamnosys),
         })
     if not rows:
         raise SystemExit("No lexical segments with HamNoSys-linked types were found.")
@@ -81,8 +107,9 @@ def main() -> None:
         "segments": len(rows),
         "unique_types": len({row["type_id"] for row in rows}),
         "unique_hamnosys_forms": len({row["hamnosys"] for row in rows}),
+        "base_handshape_inventory": dict(Counter(row["handshape_h"] for row in rows)),
         "top_types": Counter(row["sign_name"] for row in rows).most_common(20),
-        "label_contract": "Raw corpus HamNoSys strings are retained. They are source notation, not yet TRAIL h classes.",
+        "label_contract": "handshape_h is the first explicit HamNoSys base configuration. Raw notation is retained for full h/l/mu/o parsing.",
     }
     args.output.with_suffix(".json").write_text(json.dumps(audit, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Exported {len(rows)} DGS segments covering {audit['unique_types']} HamNoSys-labelled types.")
