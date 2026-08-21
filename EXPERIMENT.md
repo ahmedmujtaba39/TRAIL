@@ -142,6 +142,7 @@ transition windows after source poses exist:
 ```powershell
 python -m trail.prepare_transitions `
   --pose-root data\processed\isharah_body_pose `
+  --audit data\processed\isharah_body_pose\pose_audit.csv --min-coverage 0.70 `
   --output data\processed\isharah_weak_transitions.npz
 ```
 
@@ -181,3 +182,16 @@ locations, forearm directions, and local wrist motion. This is a reproducible
 structured-conditioning test, not expert phonological annotation. The paper must
 reserve “phonological” for a later descriptor table validated by sign-language
 experts and enriched with handshape/orientation features.
+
+### Downstream utility measurement
+
+Train the same CTC recognizer for each synthetic condition, then evaluate on
+real AT/MA recordings that were never used to train Model T. The current
+prototype evaluates Arabic intent-token WER. Its templates overlap with the
+synthetic set, so the first result is a controlled transition-utility result,
+not a claim of open-vocabulary sentence generalization.
+
+Before interpreting synthetic results, run the **real-data oracle**: train the
+same recognizer on real AT continuous pose sequences and evaluate only on MA.
+This is a diagnostic upper bound for the current pose/CTC implementation, not a
+zero-resource result.

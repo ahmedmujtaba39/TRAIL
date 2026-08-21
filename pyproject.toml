@@ -26,6 +26,8 @@ trail-batch-isharah-pose = "trail.batch_isharah_pose:main"
 trail-prepare-transitions = "trail.prepare_transitions:main"
 trail-train-transition = "trail.train_transition:main"
 trail-synthesize = "trail.synthesize:main"
+trail-run-ctc = "trail.run_ctc:main"
+trail-prepare-oracle = "trail.prepare_oracle:main"
 
 [build-system]
 requires = ["hatchling>=1.25"]

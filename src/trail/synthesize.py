@@ -58,6 +58,8 @@ def main() -> None:
     parser.add_argument("--condition", choices=["pose_only", "articulatory", "interpolation"], required=True)
     parser.add_argument("--checkpoint", type=Path, help="Required for pose_only/articulatory.")
     parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument("--variants-per-template", type=int, default=1)
+    parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--duration", type=int, default=8)
     args = parser.parse_args()
     if args.condition != "interpolation" and not args.checkpoint:
@@ -74,7 +76,7 @@ def main() -> None:
         tokens = tuple(row["tokens"].split())
         if len(tokens) > 1 and all(token in lexicon for token in tokens):
             templates.setdefault(" ".join(tokens), tokens)
-    selected = list(templates.items())
+    selected = [(label, tokens, variant) for label, tokens in templates.items() for variant in range(args.variants_per_template)]
     if args.limit is not None:
         selected = selected[:args.limit]
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -85,10 +87,9 @@ def main() -> None:
     with manifest_path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=["sample_id", "tokens", "pose_path", "condition", "source_units"])
         writer.writeheader()
-        for index, (label, tokens) in enumerate(selected):
-            # Deterministic first candidate keeps this reproducible; later runs
-            # can vary lexical exemplars as a robustness experiment.
-            paths = [lexicon[token][0] for token in tokens]
+        for index, (label, tokens, variant) in enumerate(selected):
+            # Cycle across independent isolated exemplars deterministically.
+            paths = [lexicon[token][(variant * 17 + position * 7 + args.seed) % len(lexicon[token])] for position, token in enumerate(tokens)]
             sequence = _compose([np.load(path) for path in paths], model, duration=args.duration, device=device, articulatory=args.condition == "articulatory")
             sample_id = f"syn_{index:04d}"
             pose_path = destination / f"{sample_id}.npy"
