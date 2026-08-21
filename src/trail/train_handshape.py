@@ -25,6 +25,7 @@ def main() -> None:
     args = parser.parse_args(); torch.manual_seed(args.seed)
     values = np.load(args.examples, allow_pickle=False)
     features = torch.from_numpy(values["features"]).float(); labels = torch.from_numpy(values["labels"]).long(); split = values["split"].astype(str)
+    clip_ids = values["clip_id"].astype(str) if "clip_id" in values else np.asarray([str(i) for i in range(len(labels))])
     if features.ndim != 2 or features.shape[1] != 60 or len(features) != len(labels): raise SystemExit("Expected matching [N,60] features and labels.")
     train = np.flatnonzero(split == "train"); test = np.flatnonzero(split == "test")
     if not len(train) or not len(test): raise SystemExit("Examples must provide non-empty signer-held-out train and test splits.")
@@ -36,12 +37,18 @@ def main() -> None:
         for batch_features, batch_labels in loader:
             optimizer.zero_grad(set_to_none=True); loss = nn.functional.cross_entropy(model(batch_features.to(device)), batch_labels.to(device)); loss.backward(); optimizer.step()
     model.eval()
-    with torch.no_grad():
-        prediction = model(features[test].to(device)).argmax(-1).cpu()
-    accuracy = float((prediction == labels[test]).float().mean())
+    with torch.no_grad(): logits = model(features[test].to(device)).cpu()
+    # Score one prediction per held-out clip, never one per correlated frame.
+    grouped: dict[str, list[int]] = {}
+    for offset, clip_id in enumerate(clip_ids[test]): grouped.setdefault(clip_id, []).append(offset)
+    correct = []
+    for offsets in grouped.values():
+        prediction = logits[offsets].mean(0).argmax()
+        correct.append(bool(prediction == labels[test[offsets[0]]]))
+    accuracy = float(np.mean(correct))
     args.output.parent.mkdir(parents=True, exist_ok=True)
     torch.save({"state_dict": model.state_dict(), "classes": classes, "width": args.width}, args.output)
-    args.output.with_suffix(".json").write_text(json.dumps({"signer_heldout_accuracy": accuracy, "n_train": int(len(train)), "n_test": int(len(test)), "classes": classes}, indent=2), encoding="utf-8")
+    args.output.with_suffix(".json").write_text(json.dumps({"heldout_clip_accuracy": accuracy, "n_train_frames": int(len(train)), "n_test_frames": int(len(test)), "n_test_clips": len(grouped), "classes": classes}, indent=2), encoding="utf-8")
     print(f"Signer-held-out handshape accuracy: {accuracy:.2%}")
 
 

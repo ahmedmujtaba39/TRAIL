@@ -33,11 +33,19 @@ def dominant_hand_features(window: np.ndarray, *, use_last: bool) -> np.ndarray:
     """Use the more active hand in a boundary window, deterministically."""
     if window.ndim != 3 or window.shape[1:] != (75, 3):
         raise ValueError("Handshape features require [frames, 75, 3] landmarks.")
-    left, right = window[:, 33:54], window[:, 54:75]
+    hand = dominant_hand(window)
+    hand = hand[-1 if use_last else 0]
+    return handshape_features(hand)
+
+
+def dominant_hand(landmarks: np.ndarray) -> np.ndarray:
+    """Select the active hand once for an isolated clip."""
+    if landmarks.ndim != 3 or landmarks.shape[1:] != (75, 3):
+        raise ValueError("Expected [frames, 75, 3] landmarks.")
+    left, right = landmarks[:, 33:54], landmarks[:, 54:75]
     left_energy = float(np.linalg.norm(np.diff(left[:, 0], axis=0), axis=-1).mean())
     right_energy = float(np.linalg.norm(np.diff(right[:, 0], axis=0), axis=-1).mean())
-    hand = (left if left_energy >= right_energy else right)[-1 if use_last else 0]
-    return handshape_features(hand)
+    return left if left_energy >= right_energy else right
 
 
 class HandshapeClassifier(nn.Module):
