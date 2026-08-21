@@ -33,29 +33,51 @@ def main() -> None:
     if args.limit is not None: rows = rows[:args.limit]
     if not rows: raise SystemExit("The phonology manifest is empty.")
     options = Options(); options.add_argument("--headless=new"); options.add_argument("--window-size=1024,768"); options.add_argument("--use-angle=swiftshader")
+    manifest = args.output / "render_manifest.csv"
+    if manifest.exists():
+        output_rows = list(csv.DictReader(manifest.open(encoding="utf-8", newline="")))
+    else:
+        # A previous interrupted renderer may have completed PNGs before it
+        # could write its manifest. Recover those frames without rerendering.
+        output_rows = [
+            {"image_path": str(path), "sign_id": path.stem.rsplit("_", 1)[0], "handshape_h": path.parent.name, "source": "3dz_avatar"}
+            for path in args.output.glob("*/*.png")
+        ]
+    completed = {(row["sign_id"], row["image_path"]) for row in output_rows}
+    new_manifest = not manifest.exists()
+    manifest.parent.mkdir(parents=True, exist_ok=True)
+    manifest_handle = manifest.open("a", encoding="utf-8", newline="")
+    manifest_writer = csv.DictWriter(manifest_handle, fieldnames=["image_path", "sign_id", "handshape_h", "source"])
+    if new_manifest:
+        manifest_writer.writeheader()
+        manifest_writer.writerows(output_rows); manifest_handle.flush()
     driver = webdriver.Edge(options=options)
-    output_rows = []
     try:
         driver.get(args.server.rstrip("/") + "/index.html")
         time.sleep(2.0)
         canvas = driver.find_element("css selector", "canvas.canvasAv")
         for index, row in enumerate(rows, 1):
+            destinations = [args.output / row["handshape_h"] / f"{row['sign_id']}_{frame:02d}.png" for frame in range(args.frames_per_sign)]
+            if all((row["sign_id"], str(destination)) in completed and destination.exists() for destination in destinations):
+                print(f"[{index}/{len(rows)}] class={row['handshape_h']}: already saved")
+                continue
             name = Path(row["sigml_path"]).name
             url = args.server.rstrip("/") + "/sigml/" + quote(name)
             driver.execute_script("CWASA.playSiGMLURL(arguments[0]);", url)
             for frame in range(args.frames_per_sign):
                 time.sleep(args.wait_seconds)
-                destination = args.output / row["handshape_h"] / f"{row['sign_id']}_{frame:02d}.png"
+                destination = destinations[frame]
+                record = {"image_path": str(destination), "sign_id": row["sign_id"], "handshape_h": row["handshape_h"], "source": "3dz_avatar"}
+                if (row["sign_id"], str(destination)) in completed and destination.exists():
+                    continue
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 canvas.screenshot(str(destination))
-                output_rows.append({"image_path": str(destination), "sign_id": row["sign_id"], "handshape_h": row["handshape_h"], "source": "3dz_avatar"})
-            print(f"[{index}/{len(rows)}] {row['sign_id']}: {row['handshape_h']}")
+                output_rows.append(record); manifest_writer.writerow(record); manifest_handle.flush()
+            # Avoid printing Arabic file names to a Windows cp1252 console.
+            print(f"[{index}/{len(rows)}] class={row['handshape_h']}")
     finally:
         driver.quit()
-    manifest = args.output / "render_manifest.csv"
-    with manifest.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=["image_path", "sign_id", "handshape_h", "source"])
-        writer.writeheader(); writer.writerows(output_rows)
+        manifest_handle.close()
     print(f"Wrote {len(output_rows)} synthetic frames and {manifest}")
 
 
