@@ -51,15 +51,18 @@ def heldout_examples(manifest: Path, pose_root: Path, participants: set[str]) ->
 
 
 class PoseDataset(Dataset):
-    def __init__(self, examples: list[Example], vocab: dict[str, int]):
-        self.examples, self.vocab = examples, vocab
+    def __init__(self, examples: list[Example], vocab: dict[str, int], joints: int):
+        self.examples, self.vocab, self.joints = examples, vocab, joints
 
     def __len__(self) -> int:
         return len(self.examples)
 
     def __getitem__(self, index: int):
         example = self.examples[index]
-        pose = torch.from_numpy(load_landmarks(example.pose_path)).float().flatten(1)
+        landmarks = load_landmarks(example.pose_path)
+        if landmarks.shape[1] < self.joints:
+            raise ValueError(f"{example.pose_path} has {landmarks.shape[1]} joints; recognizer requires {self.joints}.")
+        pose = torch.from_numpy(landmarks[:, :self.joints]).float().flatten(1)
         labels = torch.tensor([self.vocab[token] for token in example.tokens], dtype=torch.long)
         return pose, labels, example
 
@@ -115,6 +118,7 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--recognizer-joints", type=int, choices=[33, 75], default=33, help="Use a common body-only or hand-aware landmark view across train/test.")
     args = parser.parse_args()
     random.seed(args.seed); np.random.seed(args.seed); torch.manual_seed(args.seed)
     train = synthetic_examples(args.synthetic_manifest)
@@ -122,9 +126,9 @@ def main() -> None:
     tokens = sorted({token for item in train + test for token in item.tokens})
     vocab = {token: index + 1 for index, token in enumerate(tokens)}
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    loader = DataLoader(PoseDataset(train, vocab), batch_size=args.batch_size, shuffle=True, collate_fn=collate)
-    test_loader = DataLoader(PoseDataset(test, vocab), batch_size=args.batch_size, shuffle=False, collate_fn=collate)
-    model = CTCRecognizer(99, len(vocab) + 1).to(device)
+    loader = DataLoader(PoseDataset(train, vocab, args.recognizer_joints), batch_size=args.batch_size, shuffle=True, collate_fn=collate)
+    test_loader = DataLoader(PoseDataset(test, vocab, args.recognizer_joints), batch_size=args.batch_size, shuffle=False, collate_fn=collate)
+    model = CTCRecognizer(args.recognizer_joints * 3, len(vocab) + 1).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
     criterion = nn.CTCLoss(blank=0, zero_infinity=True)
     for epoch in range(1, args.epochs + 1):
@@ -148,7 +152,7 @@ def main() -> None:
                 scores.append(score); participant_scores[example.clip_id[:2]].append(score)
                 per_clip[example.clip_id] = score
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    result = {"mean_wer": float(np.mean(scores)), "n_test": len(scores), "seed": args.seed, "participant_wer": {key: float(np.mean(value)) if value else None for key, value in participant_scores.items()}, "n_train": len(train), "vocab_size": len(vocab), "per_clip_wer": per_clip}
+    result = {"mean_wer": float(np.mean(scores)), "n_test": len(scores), "seed": args.seed, "recognizer_joints": args.recognizer_joints, "participant_wer": {key: float(np.mean(value)) if value else None for key, value in participant_scores.items()}, "n_train": len(train), "vocab_size": len(vocab), "per_clip_wer": per_clip}
     args.output.write_text(json.dumps(result, indent=2), encoding="utf-8")
     print(json.dumps(result, indent=2))
 

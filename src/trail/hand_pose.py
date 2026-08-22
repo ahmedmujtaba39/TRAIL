@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import cv2
 import numpy as np
 
 from trail.pose import LEFT_SHOULDER, RIGHT_SHOULDER, _interpolate_missing, normalize_pose
@@ -23,6 +24,28 @@ def _fill_optional_hand(hand: np.ndarray) -> tuple[np.ndarray, float]:
     if not valid.any():
         return np.zeros_like(hand), coverage
     return _interpolate_missing(hand), coverage
+
+
+def _crop_hand_result(detector, mp, image: np.ndarray, timestamp: int):
+    """Retry hand detection on an enlarged torso crop and map it back to image coordinates."""
+    height, width = image.shape[:2]
+    x0, x1 = int(0.08 * width), int(0.92 * width)
+    y0, y1 = int(0.10 * height), int(0.90 * height)
+    crop = image[y0:y1, x0:x1]
+    enlarged = cv2.resize(crop, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
+    # The primary detector is in VIDEO mode; retain strictly increasing
+    # timestamps for the same detector when attempting the crop fallback.
+    result = detector.detect_for_video(mp.Image(image_format=mp.ImageFormat.SRGB, data=enlarged), timestamp + 1)
+    if not result.hand_landmarks:
+        return result
+    crop_width, crop_height = x1 - x0, y1 - y0
+    mapped = []
+    for hand in result.hand_landmarks:
+        mapped.append([
+            ((point.x * crop_width + x0) / width, (point.y * crop_height + y0) / height, point.z * crop_width / width)
+            for point in hand
+        ])
+    return mapped, result.handedness
 
 
 def extract_hand_pose_sequence(
@@ -64,11 +87,19 @@ def extract_hand_pose_sequence(
             hand_result = hand_detector.detect_for_video(image, timestamp)
             if pose_result.pose_landmarks:
                 body[index] = np.asarray([[p.x, p.y, p.z] for p in pose_result.pose_landmarks[0]], dtype=np.float32)
-            for landmarks, handedness in zip(hand_result.hand_landmarks, hand_result.handedness):
+            hands, handedness = hand_result.hand_landmarks, hand_result.handedness
+            if not hands:
+                recovered = _crop_hand_result(hand_detector, mp, image.numpy_view(), timestamp)
+                if isinstance(recovered, tuple):
+                    hands, handedness = recovered
+            for landmarks, handedness in zip(hands, handedness):
                 label = handedness[0].category_name.lower()
                 target = left if label == "left" else right if label == "right" else None
                 if target is not None:
-                    target[index] = np.asarray([[p.x, p.y, p.z] for p in landmarks], dtype=np.float32)
+                    target[index] = np.asarray([
+                        [p.x, p.y, p.z] if hasattr(p, "x") else p
+                        for p in landmarks
+                    ], dtype=np.float32)
     body_coverage = float((~np.isnan(body).all(axis=(1, 2))).mean())
     body = _interpolate_missing(body)
     left, left_coverage = _fill_optional_hand(left)
