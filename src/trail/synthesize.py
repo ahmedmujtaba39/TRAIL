@@ -70,13 +70,23 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--duration", type=int, default=8)
     parser.add_argument("--handshape-checkpoint", type=Path, default=None, help="Required when checkpoint descriptor width includes soft handshape probabilities.")
+    parser.add_argument("--hand-audit", type=Path, default=None, help="Optional hand_pose_audit.csv used to exclude low-coverage units.")
+    parser.add_argument("--min-hand-coverage", type=float, default=0.0, help="Require this coverage for at least one detected hand when --hand-audit is supplied.")
     args = parser.parse_args()
     if args.condition != "interpolation" and not args.checkpoint:
         raise SystemExit("--checkpoint is required for pose_only/articulatory synthesis.")
     rows = _read_csv(args.manifest)
+    hand_quality: dict[str, float] = {}
+    if args.hand_audit is not None:
+        for row in _read_csv(args.hand_audit):
+            if row.get("status") != "ok":
+                continue
+            hand_quality[row["clip_id"]] = max(float(row.get("left_hand_coverage") or 0.0), float(row.get("right_hand_coverage") or 0.0))
     lexicon: dict[str, list[Path]] = defaultdict(list)
     for row in rows:
         if row["role"] == "proxy_isolated_lexicon":
+            if args.hand_audit is not None and hand_quality.get(row["clip_id"], 0.0) < args.min_hand_coverage:
+                continue
             npz_path = args.pose_root / f"{row['clip_id']}.npz"
             path = npz_path if npz_path.exists() else args.pose_root / f"{row['clip_id']}.npy"
             if path.exists():
