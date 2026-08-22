@@ -27,14 +27,30 @@ class TransitionWindow:
     duration: int
 
 
-def sample_window(pose: np.ndarray, *, boundary_frames: int, duration: int, rng: np.random.Generator) -> TransitionWindow:
+def sample_window(pose: np.ndarray, *, boundary_frames: int, duration: int, rng: np.random.Generator, selection: str = "random") -> TransitionWindow:
     """Sample a center span with context on both sides from `[T, J, 3]` pose."""
     if pose.ndim != 3 or pose.shape[-1] != 3:
         raise ValueError("Expected pose shape [frames, joints, 3].")
     minimum = 2 * boundary_frames + duration
     if len(pose) < minimum:
         raise ValueError(f"Sequence has {len(pose)} frames; needs at least {minimum}.")
-    start = int(rng.integers(boundary_frames, len(pose) - boundary_frames - duration + 1))
+    starts = np.arange(boundary_frames, len(pose) - boundary_frames - duration + 1)
+    if selection == "random":
+        start = int(rng.choice(starts))
+    elif selection == "motion_change":
+        # Isharah does not expose gloss boundaries.  Use a conservative,
+        # reproducible proxy: windows with the largest wrist velocity change
+        # are more likely to contain a transition than arbitrary smooth spans.
+        wrists = pose[:, [15, 16]]
+        velocity = np.diff(wrists, axis=0)
+        scores = np.asarray([
+            np.linalg.norm(velocity[start + duration - 1] - velocity[start - 1], axis=-1).mean()
+            for start in starts
+        ])
+        top = starts[np.argsort(scores)[-max(1, len(starts) // 5):]]
+        start = int(rng.choice(top))
+    else:
+        raise ValueError(f"Unknown selection strategy {selection!r}")
     return TransitionWindow(
         left=pose[start - boundary_frames:start],
         target=pose[start:start + duration],
@@ -43,7 +59,7 @@ def sample_window(pose: np.ndarray, *, boundary_frames: int, duration: int, rng:
     )
 
 
-def write_windows(pose_paths: list[Path], output: Path, *, windows_per_clip: int = 2, boundary_frames: int = 6, duration: int = 8, seed: int = 42, handshape_model: HandshapeClassifier | None = None, device: torch.device | None = None) -> int:
+def write_windows(pose_paths: list[Path], output: Path, *, windows_per_clip: int = 2, boundary_frames: int = 6, duration: int = 8, seed: int = 42, handshape_model: HandshapeClassifier | None = None, device: torch.device | None = None, selection: str = "random") -> int:
     """Materialize compact weak transition windows into one compressed NPZ file."""
     rng = np.random.default_rng(seed)
     windows: list[TransitionWindow] = []
@@ -51,7 +67,7 @@ def write_windows(pose_paths: list[Path], output: Path, *, windows_per_clip: int
         pose = load_landmarks(path)
         for _ in range(windows_per_clip):
             try:
-                windows.append(sample_window(pose, boundary_frames=boundary_frames, duration=duration, rng=rng))
+                windows.append(sample_window(pose, boundary_frames=boundary_frames, duration=duration, rng=rng, selection=selection))
             except ValueError:
                 continue
     if not windows:

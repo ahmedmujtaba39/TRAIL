@@ -42,3 +42,27 @@ This makes `h` eligible for a controlled Model T ablation only after the
 remaining descriptor fields and transition experiment are run.  It does not
 yet justify claims of linguistic correctness for Egyptian Sign Language;
 those require independent expert review of generated clips.
+
+## Shared-checkpoint Model T preliminary ablation
+
+We built a disjoint Saudi split from 215 hand-qualified IshaRah clips: 180
+source clips (360 weak windows) train Model T and 35 source clips (70 windows)
+are held out.  Because IshaRah does not release temporal gloss boundaries, the
+primary weak-window variant samples high wrist-velocity-change spans; these are
+explicitly a coarticulation *proxy*, not gold boundaries.
+
+The same descriptor-dropout checkpoint (83D descriptor, 50% full-token dropout)
+was evaluated three ways on held-out windows:
+
+| Condition | Combined position/velocity error |
+| --- | ---: |
+| Interpolation | 0.09380 |
+| Shared Model T, descriptors masked | 0.10814 |
+| Shared Model T, descriptors present | 0.09749 |
+
+Descriptors improve the shared Model T by 9.8% relative to its masked version,
+but interpolation remains better.  Therefore this is evidence for a useful
+structured-conditioning signal, **not** evidence that the complete weak-source
+Model T pipeline already surpasses interpolation.  The Qatari CTC utility run
+is currently underpowered (11 quality-filtered synthetic templates) and is not
+used as a positive result.

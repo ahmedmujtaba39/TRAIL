@@ -119,10 +119,16 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--recognizer-joints", type=int, choices=[33, 75], default=33, help="Use a common body-only or hand-aware landmark view across train/test.")
+    parser.add_argument("--restrict-to-synthetic-templates", action="store_true", help="Evaluate only held-out target clips whose complete intent-token template is represented in the synthetic training set.")
     args = parser.parse_args()
     random.seed(args.seed); np.random.seed(args.seed); torch.manual_seed(args.seed)
     train = synthetic_examples(args.synthetic_manifest)
     test = heldout_examples(args.qsl_manifest, args.qsl_pose_root, set(args.eval_participants))
+    if args.restrict_to_synthetic_templates:
+        synthetic_templates = {item.tokens for item in train}
+        test = [item for item in test if item.tokens in synthetic_templates]
+    if not train or not test:
+        raise SystemExit("Need non-empty synthetic training and held-out target evaluation sets after filtering.")
     tokens = sorted({token for item in train + test for token in item.tokens})
     vocab = {token: index + 1 for index, token in enumerate(tokens)}
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -152,7 +158,7 @@ def main() -> None:
                 scores.append(score); participant_scores[example.clip_id[:2]].append(score)
                 per_clip[example.clip_id] = score
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    result = {"mean_wer": float(np.mean(scores)), "n_test": len(scores), "seed": args.seed, "recognizer_joints": args.recognizer_joints, "participant_wer": {key: float(np.mean(value)) if value else None for key, value in participant_scores.items()}, "n_train": len(train), "vocab_size": len(vocab), "per_clip_wer": per_clip}
+    result = {"mean_wer": float(np.mean(scores)), "n_test": len(scores), "seed": args.seed, "recognizer_joints": args.recognizer_joints, "restricted_to_synthetic_templates": args.restrict_to_synthetic_templates, "participant_wer": {key: float(np.mean(value)) if value else None for key, value in participant_scores.items()}, "n_train": len(train), "vocab_size": len(vocab), "per_clip_wer": per_clip}
     args.output.write_text(json.dumps(result, indent=2), encoding="utf-8")
     print(json.dumps(result, indent=2))
 
