@@ -21,6 +21,11 @@ conditions:
   - interpolation
 
 data:
+  isharah_root: C:/Users/cp/Downloads/isharah500_compressed/isharah500_compressed
+  isharah_sequence_manifest: data/processed/isharah_sequences.csv
+  qsl_workbook: C:/Users/cp/Downloads/JUMLA_QSL-2022.xlsx
+  qsl_video_root: C:/Users/cp/Downloads/Student-learning-hub-main/Qatari Sign Language
+  qsl_manifest: data/processed/jumla_qsl_manifest.csv
   source_transition_manifest: data/processed/isharah_transitions.csv
   source_isolated_manifest: data/processed/karsl_isolated.csv
   target_isolated_manifest: data/processed/qsl_dictionary_isolated.csv

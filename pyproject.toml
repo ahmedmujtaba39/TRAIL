@@ -6,6 +6,9 @@ readme = "EXPERIMENT.md"
 requires-python = ">=3.11"
 dependencies = [
   "numpy>=1.26",
+  "ijson>=3.4",
+  "mediapipe>=1.0",
+  "opencv-python>=5.0",
   "pandas>=2.2",
   "pyyaml>=6.0",
   "torch>=2.3",
@@ -15,6 +18,32 @@ dependencies = [
 [project.scripts]
 trail-smoke = "trail.smoke:main"
 trail-validate = "trail.validate:main"
+trail-prepare-qsl = "trail.prepare_qsl:main"
+trail-prepare-isharah = "trail.prepare_isharah:main"
+trail-extract-svo = "trail.extract_svo:main"
+trail-extract-pose = "trail.extract_pose:main"
+trail-extract-hand-pose = "trail.extract_hand_pose:main"
+trail-build-handshape-examples = "trail.build_handshape_examples:main"
+trail-train-handshape = "trail.train_handshape:main"
+trail-prepare-reference-handshapes = "trail.prepare_reference_handshapes:main"
+trail-train-reference-handshape = "trail.train_reference_handshape:main"
+trail-prepare-3dz-phonology = "trail.prepare_3dz_phonology:main"
+trail-render-3dz-handshapes = "trail.render_3dz_handshapes:main"
+trail-build-3dz-handshape-examples = "trail.build_3dz_handshape_examples:main"
+trail-prepare-karsl-handshape = "trail.prepare_karsl_handshape:main"
+trail-build-dgs-handshape-examples = "trail.build_dgs_handshape_examples:main"
+trail-build-dgs-mediapipe-handshape-examples = "trail.build_dgs_mediapipe_handshape_examples:main"
+trail-evaluate-handshape-transfer = "trail.evaluate_handshape_transfer:main"
+trail-batch-qsl-pose = "trail.batch_qsl_pose:main"
+trail-batch-qsl-hand-pose = "trail.batch_qsl_hand_pose:main"
+trail-batch-isharah-pose = "trail.batch_isharah_pose:main"
+trail-batch-isharah-hand-pose = "trail.batch_isharah_hand_pose:main"
+trail-prepare-transitions = "trail.prepare_transitions:main"
+trail-train-transition = "trail.train_transition:main"
+trail-synthesize = "trail.synthesize:main"
+trail-run-ctc = "trail.run_ctc:main"
+trail-prepare-oracle = "trail.prepare_oracle:main"
+trail-trim = "trail.trim:main"
 
 [build-system]
 requires = ["hatchling>=1.25"]

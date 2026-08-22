@@ -1,4 +1,4 @@
-"""Small pose-space transition model with maskable phonological tokens."""
+"""Small pose-space transition model with maskable articulatory descriptors."""
 
 from __future__ import annotations
 
@@ -29,7 +29,8 @@ class TransitionTransformer(nn.Module):
         right_descriptor: torch.Tensor,
         duration: torch.Tensor,
         *,
-        use_phonology: bool,
+        use_descriptors: bool,
+        descriptor_token_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Generate a residual over straight-line interpolation.
 
@@ -47,8 +48,12 @@ class TransitionTransformer(nn.Module):
             raise ValueError("Requested duration exceeds configured maximum of 64 frames.")
         pose_tokens = torch.cat([left_pose, right_pose], dim=1).reshape(batch, 2 * boundary_frames, joints * 3)
         pose_tokens = self.pose_projection(pose_tokens)
-        if use_phonology:
+        if use_descriptors:
             desc_tokens = torch.stack([self.descriptor_projection(left_descriptor), self.descriptor_projection(right_descriptor)], dim=1)
+            if descriptor_token_mask is not None:
+                if descriptor_token_mask.shape != (batch,):
+                    raise ValueError("descriptor_token_mask must have shape [batch].")
+                desc_tokens = torch.where(descriptor_token_mask[:, None, None], self.mask_token.expand(batch, 2, -1), desc_tokens)
         else:
             desc_tokens = self.mask_token.expand(batch, 2, -1)
         duration_token = self.duration_projection(duration.float().view(batch, 1, 1)).squeeze(1).unsqueeze(1)

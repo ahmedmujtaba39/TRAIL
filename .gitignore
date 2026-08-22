@@ -1,4 +1,7 @@
 .venv/
+.venv*/
+data/cache/
+assets/models/
 __pycache__/
 *.py[cod]
 .pytest_cache/

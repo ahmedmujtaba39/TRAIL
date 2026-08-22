@@ -17,8 +17,8 @@ def main() -> None:
     descriptor_left = torch.randn(2, 16)
     descriptor_right = torch.randn(2, 16)
     duration = torch.tensor([8, 8])
-    generated = model(left, right, descriptor_left, descriptor_right, duration, use_phonology=True)
-    masked = model(left, right, descriptor_left, descriptor_right, duration, use_phonology=False)
+    generated = model(left, right, descriptor_left, descriptor_right, duration, use_descriptors=True)
+    masked = model(left, right, descriptor_left, descriptor_right, duration, use_descriptors=False)
     baseline = interpolate(left, right, 8)
     assert generated.shape == masked.shape == baseline.shape == (2, 8, 8, 3)
 
