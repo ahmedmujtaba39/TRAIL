@@ -1,0 +1,10 @@
+{
+  "final_loss": 0.008158213709775054,
+  "epochs": 100,
+  "windows": 453,
+  "condition": "articulatory",
+  "descriptor_dim": 6,
+  "descriptor_mask_prob": 0.2,
+  "descriptor_token_drop_prob": 0.5,
+  "ablation_contract": "shared checkpoint: present descriptors vs both tokens masked"
+}

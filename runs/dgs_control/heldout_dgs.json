@@ -1,0 +1,19 @@
+{
+  "interpolation": {
+    "position_mse": 0.02565121464431286,
+    "velocity_mse": 0.006188102997839451,
+    "combined": 0.02719824039377272
+  },
+  "pose_only": {
+    "position_mse": 0.021480707451701164,
+    "velocity_mse": 0.0062283361330628395,
+    "combined": 0.023037791484966874
+  },
+  "articulatory": {
+    "position_mse": 0.019748425111174583,
+    "velocity_mse": 0.006227788515388966,
+    "combined": 0.021305372240021825
+  },
+  "windows": 114,
+  "ablation_contract": "one shared checkpoint; descriptor-present versus descriptor-masked"
+}
