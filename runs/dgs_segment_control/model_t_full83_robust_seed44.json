@@ -1,0 +1,13 @@
+{
+  "final_loss": 0.009061267442173428,
+  "epochs": 100,
+  "windows": 225,
+  "condition": "articulatory",
+  "descriptor_dim": 83,
+  "descriptor_mask_prob": 0.2,
+  "descriptor_token_drop_prob": 0.33,
+  "handshape_dim": 6,
+  "geometry_drop_prob": 0.34,
+  "descriptor_z_clip": 5.0,
+  "ablation_contract": "shared checkpoint: both descriptor tokens masked, h-only geometry masked, and full descriptor present"
+}

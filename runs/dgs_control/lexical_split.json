@@ -1,0 +1,10 @@
+{
+  "split": "lexical-type-disjoint connected-component split",
+  "seed": 42,
+  "components": 2,
+  "train_pairs": 566,
+  "test_pairs": 1,
+  "train_types": 179,
+  "test_types": 2,
+  "type_overlap": 0
+}

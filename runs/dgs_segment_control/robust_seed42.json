@@ -1,0 +1,24 @@
+{
+  "interpolation": {
+    "position_mse": 0.02567070536315441,
+    "velocity_mse": 0.006134883034974337,
+    "combined": 0.027204426121897995
+  },
+  "pose_only": {
+    "position_mse": 0.0248675886541605,
+    "velocity_mse": 0.006221355404704809,
+    "combined": 0.026422927505336702
+  },
+  "articulatory": {
+    "position_mse": 0.022773344069719315,
+    "velocity_mse": 0.006230013910681009,
+    "combined": 0.024330847547389567
+  },
+  "handshape_only": {
+    "position_mse": 0.024223076179623604,
+    "velocity_mse": 0.006224974058568478,
+    "combined": 0.025779319694265723
+  },
+  "windows": 113,
+  "ablation_contract": "one shared checkpoint; both descriptor tokens masked, handshape-only suffix masked, and full descriptor present"
+}

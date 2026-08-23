@@ -1,0 +1,10 @@
+{
+  "split": "chronological temporal block with source-and-target segment-instance disjointness",
+  "train_pairs": 225,
+  "test_pairs": 113,
+  "train_segments": 369,
+  "test_segments": 214,
+  "segment_overlap": 0,
+  "lexical_type_overlap": 2,
+  "limitation": "lexical types are not disjoint because 566/567 pairs form one connected lexical transition graph."
+}

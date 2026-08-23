@@ -1,0 +1,87 @@
+{
+  "interpolation": {
+    "mean": 0.027204427868127823,
+    "seed_std": 2.2812651767623038e-09
+  },
+  "minimum_jerk": {
+    "mean": 0.029574114829301834,
+    "seed_std": 2.2812651767623038e-09
+  },
+  "masked": {
+    "mean": 0.025578217580914497,
+    "seed_std": 0.00196428457275033
+  },
+  "full": {
+    "mean": 0.023569311946630478,
+    "seed_std": 0.0015158905880525708
+  },
+  "handshape_only": {
+    "mean": 0.026263970881700516,
+    "seed_std": 0.0015918597346171737
+  },
+  "paired_bootstrap_vs_interpolation": {
+    "minimum_jerk": {
+      "mean_error_reduction": -0.002369691152125597,
+      "relative_reduction_percent": -8.710681915283203,
+      "ci95_low": -0.002800666238181293,
+      "ci95_high": -0.0019718817260582
+    },
+    "masked": {
+      "mean_error_reduction": 0.0016262095887213945,
+      "relative_reduction_percent": 5.977738857269287,
+      "ci95_low": 0.00015731812090962198,
+      "ci95_high": 0.003107818885473534
+    },
+    "full": {
+      "mean_error_reduction": 0.0036351121962070465,
+      "relative_reduction_percent": 13.362207412719727,
+      "ci95_low": 0.0010344521142542362,
+      "ci95_high": 0.006359720765613019
+    },
+    "handshape_only": {
+      "mean_error_reduction": 0.0009404526208527386,
+      "relative_reduction_percent": 3.4569835662841797,
+      "ci95_low": -0.0004862345078436192,
+      "ci95_high": 0.0023848421289585525
+    }
+  },
+  "endpoint_articulatory_distance": {
+    "definition": "standardized endpoint h distance / sqrt(6) plus standardized endpoint l/mu/o distance / sqrt(77)",
+    "bins": [
+      {
+        "bin": "low",
+        "n": 38,
+        "distance_range": [
+          0.5032715206124289,
+          2.175650508838723
+        ],
+        "interpolation": 0.022739745676517487,
+        "full": 0.018182558938860893,
+        "relative_full_improvement_percent": 20.04062271118164
+      },
+      {
+        "bin": "medium",
+        "n": 37,
+        "distance_range": [
+          2.175650508838723,
+          2.9315938036258506
+        ],
+        "interpolation": 0.022708334028720856,
+        "full": 0.020402802154421806,
+        "relative_full_improvement_percent": 10.152800559997559
+      },
+      {
+        "bin": "high",
+        "n": 38,
+        "distance_range": [
+          2.9315938036258506,
+          5.521055169453046
+        ],
+        "interpolation": 0.03604688122868538,
+        "full": 0.032039254903793335,
+        "relative_full_improvement_percent": 11.117816925048828
+      }
+    ]
+  },
+  "split_note": "Temporal-block, segment-instance-disjoint split; lexical types overlap because the source recording's transition graph is connected."
+}
