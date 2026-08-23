@@ -70,3 +70,11 @@ def interpolate(left_pose: torch.Tensor, right_pose: torch.Tensor, duration: int
     start, end = left_pose[:, -1:], right_pose[:, :1]
     steps = torch.linspace(0, 1, duration + 2, device=left_pose.device)[1:-1].view(1, duration, 1, 1)
     return start * (1 - steps) + end * steps
+
+
+def minimum_jerk(left_pose: torch.Tensor, right_pose: torch.Tensor, duration: int) -> torch.Tensor:
+    """Fifth-order rest-to-rest endpoint interpolation baseline."""
+    start, end = left_pose[:, -1:], right_pose[:, :1]
+    time = torch.linspace(0, 1, duration + 2, device=left_pose.device)[1:-1].view(1, duration, 1, 1)
+    weight = 10 * time**3 - 15 * time**4 + 6 * time**5
+    return start * (1 - weight) + end * weight

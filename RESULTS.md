@@ -66,3 +66,39 @@ structured-conditioning signal, **not** evidence that the complete weak-source
 Model T pipeline already surpasses interpolation.  The Qatari CTC utility run
 is currently underpowered (11 quality-filtered synthetic templates) and is not
 used as a positive result.
+
+## DGS controlled coarticulation reconstruction
+
+The DGS experiment is a same-language mechanism control, not a cross-language
+transfer result. It uses 567 annotated adjacent-sign pairs from one Public DGS
+Corpus recording. Each input context is drawn from a temporally independent
+occurrence of the same lexical type, while the target is real motion at a
+time-aligned boundary. A lexical-type-disjoint split is not feasible in this
+recording because 566 of 567 pairs form one connected lexical-transition
+component. We therefore use a chronological temporal block with all source and
+target **segment instances** disjoint: 225 train pairs and 113 test pairs.
+
+The descriptor is 83D: a six-class oracle HamNoSys handshape token in this
+control plus 77D pose-derived location, local motion, orientation, and
+bilateral geometry. Three seed-42/43/44 checkpoints use the same architecture
+and descriptor-group dropout, allowing masked, handshape-only, and full modes
+to be evaluated from each checkpoint.
+
+| Condition | Mean combined error | Seed SD | Paired 95% CI of reduction vs. interpolation |
+| --- | ---: | ---: | ---: |
+| Linear interpolation | 0.027204 | 0.000000 | -- |
+| Minimum-jerk interpolation | 0.029574 | 0.000000 | [-0.002801, -0.001972] |
+| Shared Model T, descriptors masked | 0.025578 | 0.001964 | [0.000157, 0.003108] |
+| Shared Model T, handshape only | 0.026264 | 0.001592 | [-0.000486, 0.002385] |
+| Shared Model T, full 83D | **0.023569** | **0.001516** | **[0.001034, 0.006360]** |
+
+The full descriptor reduces mean error by 13.36% relative to linear
+interpolation; its paired bootstrap interval excludes zero. The handshape-only
+benefit is not statistically stable in this small control. The result supports
+the full structured transition model, but does not by itself prove a
+cross-language phonological-transfer claim.
+
+An exploratory endpoint-articulatory-distance analysis did not show a monotonic
+relative-gain trend across low/medium/high distance tertiles (20.0%, 10.2%, and
+11.1%, respectively). It must therefore be reported as a diagnostic null
+result, not as evidence for the proposed language-level distance law.

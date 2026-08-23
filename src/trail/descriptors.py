@@ -37,6 +37,10 @@ def _unit(vector: np.ndarray) -> np.ndarray:
 
 def _hand_features(hand: np.ndarray, wrist: np.ndarray, previous: np.ndarray) -> np.ndarray:
     """26D handshape, palm-orientation, spread, and local-motion descriptor."""
+    # A missed MediaPipe hand is an all-zero block. Treat it as missing
+    # information, not as a hand physically located at the image origin.
+    if not np.any(hand):
+        return np.zeros(26, dtype=np.float32)
     fingertips = hand[FINGERTIPS] - wrist
     palm_normal = _unit(np.cross(hand[5] - hand[17], hand[9] - hand[0]))
     spread = np.linalg.norm(fingertips, axis=1)
@@ -62,11 +66,14 @@ def endpoint_descriptor(
     left_previous, right_previous = previous[LEFT_HAND_START:RIGHT_HAND_START], previous[RIGHT_HAND_START:]
     left_hand = _hand_features(left, frame[LEFT_WRIST], left_previous)
     right_hand = _hand_features(right, frame[RIGHT_WRIST], right_previous)
-    bilateral = np.concatenate([
-        left[0] - right[0],
-        np.asarray([np.linalg.norm(left[0] - right[0])], dtype=np.float32),
-        (left[0] - right[0]) - (left_previous[0] - right_previous[0]),
-    ])
+    if np.any(left) and np.any(right):
+        bilateral = np.concatenate([
+            left[0] - right[0],
+            np.asarray([np.linalg.norm(left[0] - right[0])], dtype=np.float32),
+            (left[0] - right[0]) - (left_previous[0] - right_previous[0]),
+        ])
+    else:
+        bilateral = np.zeros(7, dtype=np.float32)
     descriptor = np.concatenate([body, left_hand, right_hand, bilateral]).astype(np.float32)
     if descriptor.shape != (HAND_AWARE_DESCRIPTOR_DIM,):
         raise AssertionError(f"Expected {HAND_AWARE_DESCRIPTOR_DIM}D descriptor, got {descriptor.shape}")

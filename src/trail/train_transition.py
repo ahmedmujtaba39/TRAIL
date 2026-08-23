@@ -31,6 +31,9 @@ def main() -> None:
     parser.add_argument("--descriptor-dim", type=int, default=None, help="Override descriptor width; inferred from the window file by default.")
     parser.add_argument("--descriptor-mask-prob", type=float, default=0.20, help="Per-feature mask probability for articulatory training.")
     parser.add_argument("--descriptor-token-drop-prob", type=float, default=0.50, help="Probability of masking both descriptor tokens; enables the shared-weight causal ablation.")
+    parser.add_argument("--handshape-dim", type=int, default=0, help="Prefix width of h. Required with --geometry-drop-prob.")
+    parser.add_argument("--geometry-drop-prob", type=float, default=0.0, help="Probability of retaining h while masking all l/mu/o geometry; enables the same-checkpoint h-only control.")
+    parser.add_argument("--descriptor-z-clip", type=float, default=5.0, help="Clip standardized descriptors to prevent missed landmarks becoming out-of-range tokens.")
     parser.add_argument("--condition", choices=["pose_only", "articulatory"], default="pose_only")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
@@ -52,12 +55,14 @@ def main() -> None:
     descriptor_dim = args.descriptor_dim or int(left_descriptor.shape[1])
     if left_descriptor.shape[1] != descriptor_dim:
         raise SystemExit(f"Descriptor width mismatch: data has {left_descriptor.shape[1]}, requested {descriptor_dim}")
+    if args.geometry_drop_prob and not 0 < args.handshape_dim < descriptor_dim:
+        raise SystemExit("--geometry-drop-prob requires 0 < --handshape-dim < descriptor width.")
     # Standardization makes masking a well-defined missing-value intervention.
     if args.condition == "articulatory":
         mean = torch.cat([left_descriptor, right_descriptor]).mean(0)
         std = torch.cat([left_descriptor, right_descriptor]).std(0).clamp_min(1e-4)
-        left_descriptor = (left_descriptor - mean) / std
-        right_descriptor = (right_descriptor - mean) / std
+        left_descriptor = torch.clamp((left_descriptor - mean) / std, -args.descriptor_z_clip, args.descriptor_z_clip)
+        right_descriptor = torch.clamp((right_descriptor - mean) / std, -args.descriptor_z_clip, args.descriptor_z_clip)
     else:
         mean, std = torch.zeros(descriptor_dim), torch.ones(descriptor_dim)
     loader = DataLoader(TensorDataset(left, right, target, duration, left_descriptor, right_descriptor), batch_size=args.batch_size, shuffle=True)
@@ -76,6 +81,10 @@ def main() -> None:
                 right_mask = torch.rand_like(batch_right_descriptor) < args.descriptor_mask_prob
                 batch_left_descriptor = batch_left_descriptor.masked_fill(left_mask, 0.0)
                 batch_right_descriptor = batch_right_descriptor.masked_fill(right_mask, 0.0)
+            if args.condition == "articulatory" and args.geometry_drop_prob:
+                geometry_mask = torch.rand(len(batch_left), device=batch_left.device) < args.geometry_drop_prob
+                batch_left_descriptor[geometry_mask, args.handshape_dim:] = 0.0
+                batch_right_descriptor[geometry_mask, args.handshape_dim:] = 0.0
             token_mask = (torch.rand(len(batch_left), device=device) < args.descriptor_token_drop_prob) if args.condition == "articulatory" else None
             prediction = model(
                 batch_left.to(device), batch_right.to(device), batch_left_descriptor.to(device), batch_right_descriptor.to(device),
@@ -92,10 +101,10 @@ def main() -> None:
             print(f"epoch={epoch} loss={history[-1]:.6f}")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     torch.save(
-        {"state_dict": model.state_dict(), "joints": left.shape[2], "descriptor_dim": descriptor_dim, "descriptor_mean": mean.numpy(), "descriptor_std": std.numpy(), "width": args.width, "layers": args.layers, "history": history},
+        {"state_dict": model.state_dict(), "joints": left.shape[2], "descriptor_dim": descriptor_dim, "descriptor_mean": mean.numpy(), "descriptor_std": std.numpy(), "descriptor_z_clip": args.descriptor_z_clip, "width": args.width, "layers": args.layers, "history": history},
         args.output,
     )
-    args.output.with_suffix(".json").write_text(json.dumps({"final_loss": history[-1], "epochs": args.epochs, "windows": len(left), "condition": args.condition, "descriptor_dim": descriptor_dim, "descriptor_mask_prob": args.descriptor_mask_prob if args.condition == "articulatory" else 0.0, "descriptor_token_drop_prob": args.descriptor_token_drop_prob if args.condition == "articulatory" else 0.0, "ablation_contract": "shared checkpoint: present descriptors vs both tokens masked" if args.condition == "articulatory" else "not applicable"}, indent=2), encoding="utf-8")
+    args.output.with_suffix(".json").write_text(json.dumps({"final_loss": history[-1], "epochs": args.epochs, "windows": len(left), "condition": args.condition, "descriptor_dim": descriptor_dim, "descriptor_mask_prob": args.descriptor_mask_prob if args.condition == "articulatory" else 0.0, "descriptor_token_drop_prob": args.descriptor_token_drop_prob if args.condition == "articulatory" else 0.0, "handshape_dim": args.handshape_dim if args.condition == "articulatory" else 0, "geometry_drop_prob": args.geometry_drop_prob if args.condition == "articulatory" else 0.0, "descriptor_z_clip": args.descriptor_z_clip, "ablation_contract": "shared checkpoint: both descriptor tokens masked, h-only geometry masked, and full descriptor present" if args.condition == "articulatory" else "not applicable"}, indent=2), encoding="utf-8")
     print(f"Saved {args.condition} Model T checkpoint to {args.output}")
 
 

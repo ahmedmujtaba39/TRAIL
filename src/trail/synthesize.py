@@ -21,7 +21,7 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
-def _load_model(checkpoint: Path, device: torch.device) -> tuple[TransitionTransformer, np.ndarray, np.ndarray]:
+def _load_model(checkpoint: Path, device: torch.device) -> tuple[TransitionTransformer, np.ndarray, np.ndarray, float]:
     values = torch.load(checkpoint, map_location=device, weights_only=False)
     model = TransitionTransformer(
         joints=int(values["joints"]), descriptor_dim=int(values["descriptor_dim"]),
@@ -31,10 +31,10 @@ def _load_model(checkpoint: Path, device: torch.device) -> tuple[TransitionTrans
     model.eval()
     mean = np.asarray(values.get("descriptor_mean", np.zeros(int(values["descriptor_dim"]))), dtype=np.float32)
     std = np.asarray(values.get("descriptor_std", np.ones(int(values["descriptor_dim"]))), dtype=np.float32)
-    return model, mean, np.maximum(std, 1e-4)
+    return model, mean, np.maximum(std, 1e-4), float(values.get("descriptor_z_clip", 5.0))
 
 
-def _compose(units: list[np.ndarray], model: TransitionTransformer | None, descriptor_mean: np.ndarray | None, descriptor_std: np.ndarray | None, handshape_model: HandshapeClassifier | None, *, duration: int, device: torch.device, articulatory: bool) -> np.ndarray:
+def _compose(units: list[np.ndarray], model: TransitionTransformer | None, descriptor_mean: np.ndarray | None, descriptor_std: np.ndarray | None, descriptor_z_clip: float, handshape_model: HandshapeClassifier | None, *, duration: int, device: torch.device, articulatory: bool) -> np.ndarray:
     output = [units[0]]
     with torch.no_grad():
         for left, right in zip(units, units[1:]):
@@ -48,8 +48,8 @@ def _compose(units: list[np.ndarray], model: TransitionTransformer | None, descr
                     right_raw = endpoint_descriptor(right[:6], use_last=False, handshape_model=handshape_model, device=device)
                     if len(left_raw) != model.descriptor_projection.in_features:
                         raise ValueError("Descriptor/data mismatch: use a hand-aware checkpoint with hand-aware units, or body-only for both.")
-                    left_descriptor = torch.from_numpy((left_raw - descriptor_mean) / descriptor_std).unsqueeze(0).to(device)
-                    right_descriptor = torch.from_numpy((right_raw - descriptor_mean) / descriptor_std).unsqueeze(0).to(device)
+                    left_descriptor = torch.from_numpy(np.clip((left_raw - descriptor_mean) / descriptor_std, -descriptor_z_clip, descriptor_z_clip)).unsqueeze(0).to(device)
+                    right_descriptor = torch.from_numpy(np.clip((right_raw - descriptor_mean) / descriptor_std, -descriptor_z_clip, descriptor_z_clip)).unsqueeze(0).to(device)
                 else:
                     left_descriptor = right_descriptor = torch.zeros((1, model.descriptor_projection.in_features), device=device)
                 transition = model(left_boundary, right_boundary, left_descriptor, right_descriptor, torch.tensor([duration], device=device), use_descriptors=articulatory)
@@ -101,10 +101,11 @@ def main() -> None:
         selected = selected[:args.limit]
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if args.condition != "interpolation":
-        model, descriptor_mean, descriptor_std = _load_model(args.checkpoint, device)
+        model, descriptor_mean, descriptor_std, descriptor_z_clip = _load_model(args.checkpoint, device)
         handshape_model = load_handshape_classifier(args.handshape_checkpoint, device) if args.handshape_checkpoint else None
     else:
         model = descriptor_mean = descriptor_std = handshape_model = None
+        descriptor_z_clip = 5.0
     destination = args.output_root / args.condition
     destination.mkdir(parents=True, exist_ok=True)
     manifest_path = destination / "synthetic_manifest.csv"
@@ -114,7 +115,7 @@ def main() -> None:
         for index, (label, tokens, variant) in enumerate(selected):
             # Cycle across independent isolated exemplars deterministically.
             paths = [lexicon[token][(variant * 17 + position * 7 + args.seed) % len(lexicon[token])] for position, token in enumerate(tokens)]
-            sequence = _compose([load_landmarks(path) for path in paths], model, descriptor_mean, descriptor_std, handshape_model, duration=args.duration, device=device, articulatory=args.condition == "articulatory")
+            sequence = _compose([load_landmarks(path) for path in paths], model, descriptor_mean, descriptor_std, descriptor_z_clip, handshape_model, duration=args.duration, device=device, articulatory=args.condition == "articulatory")
             sample_id = f"syn_{index:04d}"
             pose_path = destination / f"{sample_id}.npy"
             np.save(pose_path, sequence)

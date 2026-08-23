@@ -1,1 +1,2 @@
 runs/dgs_control/model_t_dgs.pt filter=lfs diff=lfs merge=lfs -text
+runs/dgs_segment_control/*.pt filter=lfs diff=lfs merge=lfs -text
